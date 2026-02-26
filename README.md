@@ -1,4 +1,4 @@
-# Local On-Device Chat UI
+# Local On-Device Chat UI using Apple On-Device Foundation Model
 
 Simple FastAPI web app with a chat UI that streams responses from Apple's on-device language model via [`python-apple-fm-sdk`](https://github.com/apple/python-apple-fm-sdk).
 
