@@ -1,4 +1,4 @@
-# Local On-Device Chat UI (ChatGPT/Claude-style)
+# Local On-Device Chat UI
 
 Simple FastAPI web app with a chat UI that streams responses from Apple's on-device language model via [`python-apple-fm-sdk`](https://github.com/apple/python-apple-fm-sdk).
 
