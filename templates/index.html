@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local LLM Chat</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">Local LLM</div>
+        <button id="new-chat" class="new-chat">+ New chat</button>
+        <div class="hint">Powered by Apple Foundation Models</div>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="topbar">
+          <div>Chat</div>
+          <div id="status" class="status">Checking model...</div>
+        </header>
+
+        <section id="messages" class="messages"></section>
+
+        <form id="composer" class="composer">
+          <textarea
+            id="prompt"
+            placeholder="Message local model..."
+            rows="1"
+            required
+          ></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </main>
+    </div>
+
+    <script>
+      window.__CONVERSATION_ID__ = "{{ conversation_id }}";
+    </script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
