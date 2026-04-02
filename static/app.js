@@ -3,8 +3,33 @@ const composer = document.getElementById('composer');
 const promptEl = document.getElementById('prompt');
 const statusEl = document.getElementById('status');
 const newChatBtn = document.getElementById('new-chat');
+const sidebarTabs = Array.from(document.querySelectorAll('.sidebar-tab'));
+const sidebarPanels = Array.from(document.querySelectorAll('.sidebar-panel'));
+const mcpForm = document.getElementById('mcp-form');
+const mcpEndpointEl = document.getElementById('mcp-endpoint');
+const mcpListEl = document.getElementById('mcp-list');
+const mcpEmptyEl = document.getElementById('mcp-empty');
+const refreshMcpBtn = document.getElementById('refresh-mcp');
+const mcpStatusEl = document.getElementById('mcp-status');
+
+const MCP_STORAGE_KEY = 'local-llm-mcp-endpoints';
 
 let conversationId = window.__CONVERSATION_ID__;
+let mcpEndpoints = loadMcpEndpoints();
+
+function loadMcpEndpoints() {
+  try {
+    const raw = localStorage.getItem(MCP_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMcpEndpoints() {
+  localStorage.setItem(MCP_STORAGE_KEY, JSON.stringify(mcpEndpoints));
+}
 
 function escapeHtml(text) {
   return text
@@ -68,6 +93,10 @@ function renderMessageContent(el, role, text) {
   el.textContent = text;
 }
 
+function renderAssistantProgress(el, text) {
+  el.innerHTML = `<p><em>${escapeHtml(text)}</em></p>`;
+}
+
 function appendMessage(role, text = '') {
   const el = document.createElement('div');
   el.className = `msg ${role}`;
@@ -77,13 +106,89 @@ function appendMessage(role, text = '') {
   return el;
 }
 
+function setActiveSidebarTab(tabName) {
+  for (const tab of sidebarTabs) {
+    const isActive = tab.dataset.tab === tabName;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  }
+
+  for (const panel of sidebarPanels) {
+    const isActive = panel.dataset.panel === tabName;
+    panel.classList.toggle('active', isActive);
+    panel.hidden = !isActive;
+  }
+}
+
+function renderMcpEndpoints() {
+  mcpListEl.innerHTML = '';
+  mcpEmptyEl.style.display = mcpEndpoints.length ? 'none' : 'block';
+
+  for (const endpoint of mcpEndpoints) {
+    const row = document.createElement('div');
+    row.className = 'mcp-item';
+
+    const label = document.createElement('div');
+    label.className = 'mcp-item-label';
+    label.textContent = endpoint;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'mcp-remove';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => {
+      mcpEndpoints = mcpEndpoints.filter((value) => value !== endpoint);
+      saveMcpEndpoints();
+      renderMcpEndpoints();
+      mcpStatusEl.textContent = 'Endpoint removed.';
+    });
+
+    row.append(label, removeBtn);
+    mcpListEl.appendChild(row);
+  }
+}
+
 async function checkStatus() {
   try {
     const res = await fetch('/api/status');
     const body = await res.json();
-    statusEl.textContent = body.ok ? 'Model ready' : `Unavailable: ${body.detail}`;
+    const modelState = body.ok ? 'Model ready' : `Unavailable: ${body.detail}`;
+    const mcpState = body.mcp_available ? 'MCP support installed' : 'MCP support not installed';
+    statusEl.textContent = `${modelState} · ${mcpState}`;
   } catch {
     statusEl.textContent = 'Status unavailable';
+  }
+}
+
+async function inspectMcpEndpoints() {
+  if (!mcpEndpoints.length) {
+    mcpStatusEl.textContent = 'Add an endpoint to preview its MCP tools.';
+    return;
+  }
+
+  mcpStatusEl.textContent = 'Inspecting MCP endpoints...';
+
+  try {
+    const res = await fetch('/api/mcp/inspect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoints: mcpEndpoints }),
+    });
+    const body = await res.json();
+
+    if (!res.ok) {
+      mcpStatusEl.textContent = body.detail || 'Failed to inspect MCP endpoints.';
+      return;
+    }
+
+    const serverSummaries = body.servers.map((server) => {
+      const names = server.tools.slice(0, 5).map((tool) => tool.name).join(', ');
+      return `${server.endpoint} (${server.tool_count} tools${names ? `: ${names}` : ''})`;
+    });
+
+    mcpStatusEl.textContent = serverSummaries.join(' | ');
+  } catch {
+    mcpStatusEl.textContent = 'Failed to inspect MCP endpoints.';
   }
 }
 
@@ -93,11 +198,22 @@ async function streamAssistantReply(message) {
   const res = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, conversation_id: conversationId }),
+    body: JSON.stringify({
+      message,
+      conversation_id: conversationId,
+      mcp_endpoints: mcpEndpoints,
+    }),
   });
 
   if (!res.ok || !res.body) {
-    assistantMsg.textContent = 'Failed to contact local model.';
+    let detail = 'Failed to contact local model.';
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      // Ignore JSON parsing failures here.
+    }
+    assistantMsg.textContent = detail;
     return;
   }
 
@@ -119,6 +235,13 @@ async function streamAssistantReply(message) {
 
       if (payload.type === 'meta') {
         conversationId = payload.conversation_id;
+        if (payload.mcp_servers?.length) {
+          const toolCount = payload.mcp_servers.reduce((sum, server) => sum + server.tool_count, 0);
+          mcpStatusEl.textContent = `Active in this chat: ${payload.mcp_servers.length} endpoint(s), ${toolCount} tool(s).`;
+        }
+      } else if (payload.type === 'progress') {
+        renderAssistantProgress(assistantMsg, payload.content);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
       } else if (payload.type === 'chunk') {
         renderMessageContent(assistantMsg, 'assistant', payload.content);
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -162,7 +285,37 @@ newChatBtn.addEventListener('click', async () => {
 
   conversationId = crypto.randomUUID();
   messagesEl.innerHTML = '';
+  mcpStatusEl.textContent = mcpEndpoints.length
+    ? 'New chat started. MCP endpoints will be available on the next message.'
+    : 'MCP tools are optional.';
 });
 
-appendMessage('assistant', 'Hi. I am your local on-device assistant.');
+for (const tab of sidebarTabs) {
+  tab.addEventListener('click', () => {
+    setActiveSidebarTab(tab.dataset.tab);
+  });
+}
+
+mcpForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const endpoint = mcpEndpointEl.value.trim().replace(/\/$/, '');
+  if (!endpoint) return;
+
+  if (mcpEndpoints.includes(endpoint)) {
+    mcpStatusEl.textContent = 'That endpoint is already configured.';
+    return;
+  }
+
+  mcpEndpoints = [...mcpEndpoints, endpoint];
+  saveMcpEndpoints();
+  renderMcpEndpoints();
+  mcpEndpointEl.value = '';
+  mcpStatusEl.textContent = 'Endpoint added. Refresh MCP tools to verify connectivity.';
+});
+
+refreshMcpBtn.addEventListener('click', inspectMcpEndpoints);
+
+appendMessage('assistant', 'Hi. I am your local on-device assistant. Add MCP endpoints in the sidebar if you want me to use external tools.');
+setActiveSidebarTab('chat');
+renderMcpEndpoints();
 checkStatus();

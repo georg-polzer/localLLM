@@ -10,8 +10,61 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">Local LLM</div>
-        <button id="new-chat" class="new-chat">+ New chat</button>
-        <div class="hint">Powered by Apple Foundation Models</div>
+        <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections">
+          <button
+            id="sidebar-tab-chat"
+            class="sidebar-tab active"
+            type="button"
+            data-tab="chat"
+            role="tab"
+            aria-selected="true"
+            aria-controls="sidebar-panel-chat"
+          >
+            Chat
+          </button>
+          <button
+            id="sidebar-tab-mcp"
+            class="sidebar-tab"
+            type="button"
+            data-tab="mcp"
+            role="tab"
+            aria-selected="false"
+            aria-controls="sidebar-panel-mcp"
+          >
+            MCP
+          </button>
+        </div>
+
+        <div id="sidebar-panel-chat" class="sidebar-panel active" data-panel="chat" role="tabpanel">
+          <section class="sidebar-section">
+            <div class="section-title">Conversation</div>
+            <button id="new-chat" class="new-chat">+ New chat</button>
+            <div class="sidebar-copy">
+              Start a fresh session while keeping your saved MCP endpoints intact.
+            </div>
+          </section>
+        </div>
+
+        <div id="sidebar-panel-mcp" class="sidebar-panel" data-panel="mcp" role="tabpanel" hidden>
+          <section class="sidebar-section">
+            <div class="section-title">MCP Endpoints</div>
+            <form id="mcp-form" class="mcp-form">
+              <input
+                id="mcp-endpoint"
+                type="url"
+                placeholder="https://server.example.com/mcp"
+              />
+              <button type="submit" class="secondary-button">Add</button>
+            </form>
+            <div id="mcp-empty" class="empty-state">No MCP endpoints configured.</div>
+            <div id="mcp-list" class="mcp-list"></div>
+            <button id="refresh-mcp" class="secondary-button" type="button">
+              Refresh MCP tools
+            </button>
+            <div id="mcp-status" class="mcp-status">MCP tools are optional.</div>
+          </section>
+        </div>
+        <div class="hint">Powered by Ollama with a local model and optional MCP grounding.</div>
       </aside>
 
       <main class="chat-panel">
@@ -37,6 +90,6 @@
     <script>
       window.__CONVERSATION_ID__ = "{{ conversation_id }}";
     </script>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260330-progress-1"></script>
   </body>
 </html>

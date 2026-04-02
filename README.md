@@ -1,32 +1,86 @@
-# Local On-Device Chat UI using Apple Foundation Models
+# localLLM
 
-Simple FastAPI web app with a chat UI that streams responses from Apple's on-device language model via [`python-apple-fm-sdk`](https://github.com/apple/python-apple-fm-sdk).
+FastAPI chat UI backed by Ollama, with optional MCP endpoint discovery and tool use in the sidebar.
 
-## 1) Install dependencies
+## Prerequisites
+
+- Ollama running locally
+- A chat model pulled into Ollama
+- Python 3 with `venv`
+
+## 1) Start Ollama
+
+If Ollama is not already running, start it first:
+
+```bash
+ollama serve
+```
+
+In another terminal, check which models you have:
+
+```bash
+ollama list
+```
+
+If you want to use Gemma 4 with the app default, pull the matching Ollama tag:
+
+```bash
+ollama pull gemma4:e4b
+```
+
+If you do not set `OLLAMA_MODEL`, the app defaults to `gemma4:e4b`.
+
+If you want to use a different Ollama model, point `localLLM` at that exact tag:
+
+```bash
+export OLLAMA_MODEL=<your-model-tag>
+```
+
+You can also override the Ollama host if needed:
+
+```bash
+export OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+## 2) Install Python dependencies
+
+From this repo:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
-Install Apple FM SDK from source:
+## 3) Run the app
+
+From the repo root, with the virtualenv still activated:
 
 ```bash
-git clone https://github.com/apple/python-apple-fm-sdk.git
-pip install -e ./python-apple-fm-sdk
+python3 app.py
 ```
 
-## 2) Run
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-```bash
-python app.py
-```
+## 4) Use MCP endpoints
 
-Then open: <http://127.0.0.1:8000>
+In the left sidebar:
+
+1. Open the `MCP` tab.
+2. Add one or more Streamable HTTP MCP endpoints.
+3. Click `Refresh MCP tools` to verify the server and inspect available tools.
+4. Ask your question in chat.
+
+The app will connect to those MCP servers, discover their tools, and use Ollama to decide when to call them.
+
+## Useful env vars
+
+- `OLLAMA_MODEL`: model tag to send chat/tool-planning requests to. Defaults to `gemma4:e4b`.
+- `OLLAMA_BASE_URL`: Ollama base URL, defaults to `http://127.0.0.1:11434`
+- `DUODATA_API_BASE_URL`: optional override for the DuoData service, defaults to `http://127.0.0.1:8002`
 
 ## Notes
 
-- This only works on Apple devices/OS versions where Foundation Models are available.
-- The backend checks availability with `SystemLanguageModel().is_available()`.
-- Conversation context is preserved per chat session until you click **New chat**.
+- `localLLM` now uses Ollama, not Apple Foundation Models.
+- The configured `OLLAMA_MODEL` must exist in `ollama list` or `/api/status` will report it as unavailable.
+- MCP support uses the Python [`mcp`](https://pypi.org/project/mcp/) client and expects Streamable HTTP endpoints.

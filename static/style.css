@@ -48,6 +48,60 @@ body {
   font-weight: 700;
 }
 
+.sidebar-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.sidebar-tab {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sidebar-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sidebar-panel {
+  display: none;
+}
+
+.sidebar-panel.active {
+  display: block;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sidebar-copy {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .new-chat {
   border: 1px solid var(--border);
   background: #fff;
@@ -55,6 +109,70 @@ body {
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.secondary-button {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mcp-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.mcp-form input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.mcp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mcp-item-label {
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.mcp-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.empty-state,
+.mcp-status {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .hint {
