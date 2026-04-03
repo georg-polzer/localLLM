@@ -70,7 +70,13 @@
       <main class="chat-panel">
         <header class="topbar">
           <div>Chat</div>
-          <div id="status" class="status">Checking model...</div>
+          <div class="topbar-actions">
+            <select id="model-select" class="topbar-select" aria-label="Select model">
+              <option>Loading models...</option>
+            </select>
+            <button id="stop-ollama" class="topbar-button" type="button">Stop Ollama server</button>
+            <div id="status" class="status">Checking model...</div>
+          </div>
         </header>
 
         <section id="messages" class="messages"></section>
@@ -90,6 +96,6 @@
     <script>
       window.__CONVERSATION_ID__ = "{{ conversation_id }}";
     </script>
-    <script src="/static/app.js?v=20260330-progress-1"></script>
+    <script src="/static/app.js?v=20260403-model-picker"></script>
   </body>
 </html>

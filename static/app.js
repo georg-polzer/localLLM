@@ -2,6 +2,8 @@ const messagesEl = document.getElementById('messages');
 const composer = document.getElementById('composer');
 const promptEl = document.getElementById('prompt');
 const statusEl = document.getElementById('status');
+const modelSelectEl = document.getElementById('model-select');
+const stopOllamaBtn = document.getElementById('stop-ollama');
 const newChatBtn = document.getElementById('new-chat');
 const sidebarTabs = Array.from(document.querySelectorAll('.sidebar-tab'));
 const sidebarPanels = Array.from(document.querySelectorAll('.sidebar-panel'));
@@ -16,6 +18,8 @@ const MCP_STORAGE_KEY = 'local-llm-mcp-endpoints';
 
 let conversationId = window.__CONVERSATION_ID__;
 let mcpEndpoints = loadMcpEndpoints();
+let ollamaIsReady = false;
+let currentModel = '';
 
 function loadMcpEndpoints() {
   try {
@@ -148,15 +152,109 @@ function renderMcpEndpoints() {
   }
 }
 
+function updateOllamaButton() {
+  stopOllamaBtn.textContent = ollamaIsReady ? 'Stop Ollama server' : 'Start Ollama service';
+}
+
+function renderModelOptions(models, selectedModel) {
+  modelSelectEl.innerHTML = '';
+
+  if (!models.length) {
+    const option = document.createElement('option');
+    option.textContent = 'No models available';
+    option.value = '';
+    modelSelectEl.appendChild(option);
+    modelSelectEl.disabled = true;
+    return;
+  }
+
+  for (const model of models) {
+    const option = document.createElement('option');
+    option.value = model;
+    option.textContent = model;
+    option.selected = model === selectedModel;
+    modelSelectEl.appendChild(option);
+  }
+
+  modelSelectEl.disabled = false;
+}
+
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    const body = await res.json();
+    currentModel = body.current_model || currentModel;
+    renderModelOptions(body.models || [], currentModel);
+  } catch {
+    renderModelOptions([], currentModel);
+  }
+}
+
 async function checkStatus() {
   try {
     const res = await fetch('/api/status');
     const body = await res.json();
+    ollamaIsReady = Boolean(body.ok);
+    currentModel = body.model || currentModel;
     const modelState = body.ok ? 'Model ready' : `Unavailable: ${body.detail}`;
     const mcpState = body.mcp_available ? 'MCP support installed' : 'MCP support not installed';
     statusEl.textContent = `${modelState} · ${mcpState}`;
   } catch {
+    ollamaIsReady = false;
     statusEl.textContent = 'Status unavailable';
+  } finally {
+    updateOllamaButton();
+  }
+}
+
+async function stopOllama() {
+  stopOllamaBtn.disabled = true;
+  stopOllamaBtn.textContent = ollamaIsReady ? 'Stopping server...' : 'Starting service...';
+
+  try {
+    const res = await fetch(ollamaIsReady ? '/api/ollama/stop' : '/api/ollama/start', { method: 'POST' });
+    const body = await res.json();
+    if (body.ok) {
+      statusEl.textContent = ollamaIsReady ? 'Ollama stopped' : 'Ollama started';
+    } else {
+      statusEl.textContent = `${ollamaIsReady ? 'Stop' : 'Start'} failed: ${body.detail}`;
+    }
+  } catch {
+    statusEl.textContent = `${ollamaIsReady ? 'Stop' : 'Start'} failed`;
+  } finally {
+    stopOllamaBtn.disabled = false;
+    setTimeout(checkStatus, 400);
+  }
+}
+
+async function selectModel() {
+  const nextModel = modelSelectEl.value;
+  if (!nextModel || nextModel === currentModel) return;
+
+  modelSelectEl.disabled = true;
+
+  try {
+    const res = await fetch('/api/models/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: nextModel }),
+    });
+    const body = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = body.detail || 'Failed to switch model.';
+      modelSelectEl.value = currentModel;
+      return;
+    }
+
+    currentModel = body.model;
+    statusEl.textContent = `Switched to ${currentModel}`;
+  } catch {
+    statusEl.textContent = 'Failed to switch model.';
+    modelSelectEl.value = currentModel;
+  } finally {
+    await checkStatus();
+    await loadModels();
   }
 }
 
@@ -290,6 +388,9 @@ newChatBtn.addEventListener('click', async () => {
     : 'MCP tools are optional.';
 });
 
+stopOllamaBtn.addEventListener('click', stopOllama);
+modelSelectEl.addEventListener('change', selectModel);
+
 for (const tab of sidebarTabs) {
   tab.addEventListener('click', () => {
     setActiveSidebarTab(tab.dataset.tab);
@@ -319,3 +420,4 @@ appendMessage('assistant', 'Hi. I am your local on-device assistant. Add MCP end
 setActiveSidebarTab('chat');
 renderMcpEndpoints();
 checkStatus();
+loadModels();
